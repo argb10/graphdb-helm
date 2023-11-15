@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
-set -eu
+set -eux
 
 function createCluster {
-  waitAllNodes $1
+  waitAllNodes $1 $4
   local configLocation=$2
   local authToken=$PROVISION_USER_AUTH_TOKEN
   local timeout=$3
+  local namespace=$4
   echo "Creating cluster"
-  curl -o response.json -isSL -m $timeout -X POST --header "Authorization: Basic ${authToken}" --header 'Content-Type: application/json' --header 'Accept: */*' -d @"$configLocation" http://graphdb-node-0.graphdb-node:7200/rest/cluster/config
-  if grep -q 'HTTP/1.1 201' "response.json"; then
+  curl -o /tmp/response.json -isSL -m ${timeout} -X POST --header "Authorization: Basic ${authToken}" --header 'Content-Type: application/json' --header 'Accept: */*' -d @"${configLocation}" http://graphdb-node-0.graphdb-node.${namespace}.svc.cluster.local:7200/rest/cluster/config
+  if grep -q 'HTTP/1.1 201' "/tmp/response.json"; then
     echo "Cluster creation successful!"
-  elif grep -q 'Cluster already exists.\|HTTP/1.1 409' "response.json" ; then
+  elif grep -q 'Cluster already exists.\|HTTP/1.1 409' "/tmp/response.json" ; then
     echo "Cluster already exists"
   else
     echo "Cluster creation failed, received response:"
-    cat response.json
+    cat /tmp/response.json
     echo
     exit 1
   fi
@@ -42,17 +43,19 @@ function waitService {
 
 function waitAllNodes {
   local node_count=$1
+  local namespace=$2
 
   for (( c=$node_count; c>0; c ))
   do
     c=$((c-1))
-    local node_address=http://graphdb-node-$c.graphdb-node:7200
+    local node_address=http://graphdb-node-$c.graphdb-node.${namespace}.svc.cluster.local:7200
     waitService "${node_address}/rest/repositories"
   done
 }
 
 function createRepositoryFromFile {
-  waitAllNodes $1
+  local namespace=$3
+  waitAllNodes "$1" "$namespace"
   local repositoriesConfigsLocation=$2
   local authToken=$PROVISION_USER_AUTH_TOKEN
   local timeout=60
@@ -61,7 +64,7 @@ function createRepositoryFromFile {
   for filename in ${repositoriesConfigsLocation}/*.ttl; do
     repositoryName=$(grep "rep:repositoryID" $filename | sed -ne 's/rep:repositoryID "//p' | sed -ne 's/" ;//p' | sed -ne 's/^[[:space:]]*//p')
     echo "Provisioning repository ${repositoryName}"
-    response=$(curl -X POST --connect-timeout 60 --retry 3 --retry-all-errors --retry-delay 10 -H "Authorization: Basic ${authToken}" -H 'Content-Type: multipart/form-data' -F config=@${filename}  http://graphdb-node-0.graphdb-node:7200/rest/repositories)
+    response=$(curl -X POST --connect-timeout 60 --retry 3 --retry-all-errors --retry-delay 10 -H "Authorization: Basic ${authToken}" -H 'Content-Type: multipart/form-data' -F config=@${filename}  http://graphdb-node-0.graphdb-node.${namespace}.svc.cluster.local:7200/rest/repositories)
     if [ -z "$response" ]; then
       echo "Successfully created repository ${repositoryName}"
     else

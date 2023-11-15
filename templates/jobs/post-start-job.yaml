@@ -43,6 +43,7 @@ spec:
             - "{{ .Values.graphdb.clusterConfig.nodesCount }}"
             - "/tmp/cluster-config/cluster-config.json"
             - "{{ .Values.graphdb.clusterConfig.clusterCreationTimeout }}"
+            - "{{ $.Release.Namespace }}"
       volumes:
         - name: job-temp
           emptyDir:

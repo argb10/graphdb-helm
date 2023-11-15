@@ -2,7 +2,7 @@
   "users" : {
     "admin" : {
       "username" : "admin",
-      "password" : "{bcrypt}$2a$10$H7uekkF1ZFLIV5M1g9tDs.syZGtkMqrfj2Si2SHG1WgwhpNqpZwne",
+      "password" : "{bcrypt}{{ htpasswd .Values.graphdb.security.provisioningUsername .Values.graphdb.security.provisioningPassword | trimPrefix (printf "%s:" .Values.graphdb.security.provisioningUsername) }}",
       "grantedAuthorities" : [ "ROLE_ADMIN" ],
       "appSettings" : {
         "DEFAULT_INFERENCE" : true,
